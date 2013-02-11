@@ -128,6 +128,7 @@ class t_rb_generator : public t_oop_generator {
   void generate_service_helpers   (t_service*  tservice);
   void generate_service_interface (t_service* tservice);
   void generate_service_client    (t_service* tservice);
+  void generate_service_mock      (t_service* tservice);
   void generate_service_server    (t_service* tservice);
   void generate_process_function  (t_service* tservice, t_function* tfunction);
 
@@ -185,7 +186,7 @@ class t_rb_generator : public t_oop_generator {
                                           t_list*     tlist,
                                           std::string iter);
 
-  void generate_rdoc                     (t_rb_ofstream& out, 
+  void generate_rdoc                     (t_rb_ofstream& out,
                                           t_doc* tdoc);
 
   /**
@@ -235,7 +236,7 @@ class t_rb_generator : public t_oop_generator {
    */
 
   t_rb_ofstream f_types_;
-  t_rb_ofstream f_consts_;
+  // t_rb_ofstream f_consts_;
   t_rb_ofstream f_service_;
 
   /** If true, add a "require 'rubygems'" line to the top of each gen-rb file. */
@@ -257,20 +258,19 @@ void t_rb_generator::init_generator() {
   string f_types_name = get_out_dir()+underscore(program_name_)+"_types.rb";
   f_types_.open(f_types_name.c_str());
 
-  string f_consts_name = get_out_dir()+underscore(program_name_)+"_constants.rb";
-  f_consts_.open(f_consts_name.c_str());
+  //string f_consts_name = get_out_dir()+underscore(program_name_)+"_constants.rb";
+  //f_consts_.open(f_consts_name.c_str());
 
   // Print header
   f_types_ <<
-    rb_autogen_comment() << endl << render_require_thrift() <<
-    render_includes() << endl;
+    rb_autogen_comment() << endl << render_includes() << endl;
     begin_namespace(f_types_, ruby_modules(program_));
 
-  f_consts_ <<
-    rb_autogen_comment() << endl << render_require_thrift() <<
-    "require '" << underscore(program_name_) << "_types'" << endl <<
-    endl;
-    begin_namespace(f_consts_, ruby_modules(program_));
+  // f_consts_ <<
+  //   rb_autogen_comment() << endl << render_require_thrift() <<
+  //   "require '" << underscore(program_name_) << "_types'" << endl <<
+  //   endl;
+  //   begin_namespace(f_consts_, ruby_modules(program_));
 
 }
 
@@ -318,9 +318,9 @@ string t_rb_generator::rb_autogen_comment() {
 void t_rb_generator::close_generator() {
   // Close types file
   end_namespace(f_types_, ruby_modules(program_));
-  end_namespace(f_consts_, ruby_modules(program_));
+  // end_namespace(f_consts_, ruby_modules(program_));
   f_types_.close();
-  f_consts_.close();
+  // f_consts_.close();
 }
 
 /**
@@ -356,7 +356,7 @@ void t_rb_generator::generate_enum(t_enum* tenum) {
     generate_rdoc(f_types_, *c_iter);
     f_types_.indent() << name << " = " << value << endl;
   }
-  
+
   // Create a hash mapping values back to their names (as strings) since ruby has no native enum type
   f_types_.indent() << "VALUE_MAP = {";
   bool first = true;
@@ -367,7 +367,7 @@ void t_rb_generator::generate_enum(t_enum* tenum) {
     f_types_ << value << " => \"" << capitalize((*c_iter)->get_name()) << "\"";
   }
   f_types_ << "}" << endl;
-  
+
   // Create a set with valid values for this enum
   f_types_.indent() << "VALID_VALUES = Set.new([";
   first = true;
@@ -393,8 +393,8 @@ void t_rb_generator::generate_const(t_const* tconst) {
 
   name[0] = toupper(name[0]);
 
-  f_consts_.indent() << name << " = ";
-  render_const_value(f_consts_, type, value) << endl << endl;
+  f_types_.indent() << name << " = ";
+  render_const_value(f_types_, type, value) << endl << endl;
 }
 
 /**
@@ -590,7 +590,7 @@ void t_rb_generator::generate_field_constructors(t_rb_ofstream& out, t_struct* t
     out.indent() << "  " << tstruct->get_name() << ".new(:" << field_name << ", val)" << endl;
     out.indent() << "end" << endl;
   }
-  
+
   out.indent_down();
   out.indent() << "end" << endl;
 
@@ -627,7 +627,7 @@ void t_rb_generator::generate_field_constants(t_rb_ofstream& out, t_struct* tstr
   for (f_iter = fields.begin(); f_iter != fields.end(); ++f_iter) {
     std::string field_name = (*f_iter)->get_name();
     std::string cap_field_name = upcase_string(field_name);
-    
+
     out.indent() << cap_field_name << " = " << (*f_iter)->get_key() << endl;
   }
   out << endl;
@@ -649,15 +649,15 @@ void t_rb_generator::generate_field_defns(t_rb_ofstream& out, t_struct* tstruct)
 
     out.indent() << upcase_string((*f_iter)->get_name()) << " => ";
 
-    generate_field_data(out, (*f_iter)->get_type(), (*f_iter)->get_name(), (*f_iter)->get_value(), 
+    generate_field_data(out, (*f_iter)->get_type(), (*f_iter)->get_name(), (*f_iter)->get_value(),
       (*f_iter)->get_req() == t_field::T_OPTIONAL);
   }
   out.indent_down();
   out << endl;
   out.indent() << "}" << endl << endl;
-  
+
   out.indent() << "def struct_fields; FIELDS; end" << endl << endl;
-  
+
 }
 
 void t_rb_generator::generate_field_data(t_rb_ofstream& out, t_type* field_type,
@@ -696,7 +696,7 @@ void t_rb_generator::generate_field_data(t_rb_ofstream& out, t_type* field_type,
       out << ", :binary => true";
     }
   }
-  
+
   if(optional) {
     out << ", :optional => true";
   }
@@ -734,16 +734,16 @@ void t_rb_generator::generate_service(t_service* tservice) {
   f_service_.open(f_service_name.c_str());
 
   f_service_ <<
-    rb_autogen_comment() << endl << render_require_thrift();
+    rb_autogen_comment() << endl; // << render_require_thrift();
 
-  if (tservice->get_extends() != NULL) {
-    f_service_ <<
-      "require '" << underscore(tservice->get_extends()->get_name()) << "'" << endl;
-  }
+  // if (tservice->get_extends() != NULL) {
+  //   f_service_ <<
+  //     "require '" << underscore(tservice->get_extends()->get_name()) << "'" << endl;
+  // }
 
-  f_service_ <<
-    "require '" << underscore(program_name_) << "_types'" << endl <<
-    endl;
+  // f_service_ <<
+  //   "require '" << underscore(program_name_) << "_types'" << endl <<
+  //   endl;
 
   begin_namespace(f_service_, ruby_modules(tservice->get_program()));
 
@@ -752,8 +752,9 @@ void t_rb_generator::generate_service(t_service* tservice) {
 
   // Generate the three main parts of the service (well, two for now in PHP)
   generate_service_client(tservice);
-  generate_service_server(tservice);
+  //generate_service_server(tservice);
   generate_service_helpers(tservice);
+  generate_service_mock(tservice);
 
   f_service_.indent_down();
   f_service_.indent() << "end" << endl << endl;
@@ -801,6 +802,67 @@ void t_rb_generator::generate_rb_function_helpers(t_function* tfunction) {
     result.append(*f_iter);
   }
   generate_rb_struct(f_service_, &result);
+}
+
+/**
+ * Generates mock for a service
+ *
+ * @param tservice The service
+ */
+void t_rb_generator::generate_service_mock(t_service* tservice) {
+  f_service_.indent() << "# SERVICE MOCK" << endl << endl;
+
+  string classname = capitalize(tservice->get_name());
+  f_service_.indent() << "class Mock" << endl;
+  f_service_.indent_up();
+
+  vector<t_function*> functions = tservice->get_functions();
+  vector<t_function*>::const_iterator f_iter;
+  for (f_iter = functions.begin(); f_iter != functions.end(); ++f_iter) {
+    t_function *func = (*f_iter);
+
+    f_service_.indent() << "def " << function_signature(func) << endl;
+    f_service_.indent_up();
+
+    if (!func->get_returntype()->is_void()) {
+      t_field success(func->get_returntype(), "success", 0);
+      t_field *field = &success;
+      t_type *field_type = field->get_type();
+
+      f_service_.indent();
+
+      if (!field_type->is_base_type()) {
+        if (field_type->is_struct()) {
+          f_service_ << full_type_name((t_struct*)field_type) << ".new";
+        } else if (field_type->is_list()) {
+          f_service_ << "[]";
+        } else if (field_type->is_map()) {
+          f_service_ << "{}";
+        } else if (field_type->is_set()) {
+          f_service_ << "Set.new";
+        }
+      } else {
+        if (field_type->is_string()) {
+          f_service_ << "''";
+        } else if (field_type->is_bool()) {
+          f_service_ << "true";
+        } else {
+          f_service_ << "1";
+        }
+      }
+
+      f_service_ << endl;
+    }
+
+    // f_service_.indent() << capitalize(func->get_name()) << "_result.new" << endl;
+
+    f_service_.indent_down();
+    f_service_.indent() << "end" << endl;
+    f_service_ << endl;
+  }
+
+  f_service_.indent_down();
+  f_service_.indent() << "end" << endl;
 }
 
 /**
@@ -1149,7 +1211,7 @@ void t_rb_generator::generate_rdoc(t_rb_ofstream& out, t_doc* tdoc) {
   }
 }
 
-void t_rb_generator::generate_rb_struct_required_validator(t_rb_ofstream& out, 
+void t_rb_generator::generate_rb_struct_required_validator(t_rb_ofstream& out,
                                                            t_struct* tstruct) {
   out.indent() << "def validate" << endl;
   out.indent_up();
@@ -1176,14 +1238,14 @@ void t_rb_generator::generate_rb_struct_required_validator(t_rb_ofstream& out,
   for (f_iter = fields.begin(); f_iter != fields.end(); ++f_iter) {
     t_field* field = (*f_iter);
 
-    if (field->get_type()->is_enum()){      
+    if (field->get_type()->is_enum()){
       out.indent() << "unless @" << field->get_name() << ".nil? || " <<
         full_type_name(field->get_type()) << "::VALID_VALUES.include?(@" <<
         field->get_name() << ")" << endl;
       out.indent_up();
       out.indent() <<
         "raise ::Thrift::ProtocolException.new(::Thrift::ProtocolException::UNKNOWN, 'Invalid value of field " <<
-        field->get_name() << "!')" << endl;  
+        field->get_name() << "!')" << endl;
       out.indent_down();
       out.indent() << "end" << endl;
     }
@@ -1193,7 +1255,7 @@ void t_rb_generator::generate_rb_struct_required_validator(t_rb_ofstream& out,
   out.indent() << "end" << endl << endl;
 }
 
-void t_rb_generator::generate_rb_union_validator(t_rb_ofstream& out, 
+void t_rb_generator::generate_rb_union_validator(t_rb_ofstream& out,
                                                  t_struct* tstruct) {
   out.indent() << "def validate" << endl;
   out.indent_up();
@@ -1208,12 +1270,12 @@ void t_rb_generator::generate_rb_union_validator(t_rb_ofstream& out,
   for (f_iter = fields.begin(); f_iter != fields.end(); ++f_iter) {
     const t_field* field = (*f_iter);
 
-    if (field->get_type()->is_enum()){      
+    if (field->get_type()->is_enum()){
       out.indent() << "if get_set_field == :" << field->get_name() << endl;
       out.indent() <<
         "  raise ::Thrift::ProtocolException.new(::Thrift::ProtocolException::UNKNOWN, 'Invalid value of field " <<
         field->get_name() << "!') unless " << full_type_name(field->get_type()) <<
-        "::VALID_VALUES.include?(get_value)" << endl;  
+        "::VALID_VALUES.include?(get_value)" << endl;
       out.indent() << "end" << endl;
     }
   }
